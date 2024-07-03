@@ -60,21 +60,12 @@ class Yardsbot(commands.Bot):
 
     async def on_ready(self):
         print("------------------")
-        print(f"Logging As {self.user}")
+        print(f"Logged As {self.user}")
         print(f"Bot ID: {self.user.id}")
-        print("------------------")
-        print(f"Discord Version: {discord.__version__}")
-        print(f"Python Version: {sys.version}")
         print("------------------")
 
         func.tokens.client_id = self.user.id
         func.LOCAL_LANGS.clear()
-
-        print(f'Logged in as {bot.user} (ID: {bot.user.id})')
-        print('------')
-        print('Registered Commands:')
-        for command in bot.tree.get_commands():
-            print(f"{command.name} - {command.description}")
 
     async def on_command_error(self, ctx: commands.Context, exception, /) -> None:
         error = getattr(exception, 'original', exception)
@@ -124,9 +115,6 @@ async def get_prefix(bot, message: discord.Message):
 
 # Loading settings
 func.settings = Settings(func.open_json("settings.json"))
-
-
-
 
 # Setup the bot object
 intents = discord.Intents.default()

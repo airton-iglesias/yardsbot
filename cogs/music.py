@@ -1,4 +1,4 @@
-import discord, voicelink, re
+import asyncio, discord, voicelink, re
 
 from io import StringIO
 from discord import app_commands
@@ -16,16 +16,13 @@ from function import (
     get_aliases
 )
 
-from addons import lyricsPlatform
-from views import SearchView, ListView, LinkView, LyricsView, HelpView
+from views import SearchView, ListView, LinkView, HelpView
 from validators import url
 
 searchPlatform = {
     "spotify": "spsearch",
     "youtube": "ytsearch",
-    "youtubemusic": "ytmsearch",
-    "soundcloud": "scsearch",
-    "apple": "amsearch"
+    "youtubemusic": "ytmsearch"
 }
 
 
@@ -69,9 +66,6 @@ class Music(commands.Cog):
         view.response = await ctx.send(embed=embed, view=view)
 
         await ctx.send("Invalid command, these are the commands for the music category.")
-
-    async def help_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
-        return [app_commands.Choice(name=c.capitalize(), value=c) for c in self.bot.cogs if c not in ["Nodes", "Task"] and current in c]
 
     async def play_autocomplete(self, interaction: discord.Interaction, current: str) -> list:
         if voicelink.pool.URL_REGEX.match(current): return
@@ -122,11 +116,14 @@ class Music(commands.Cog):
         try:
             if isinstance(tracks, voicelink.Playlist):
                 index = await player.add_track(tracks.tracks)
-                await send(ctx, "playlistLoad", tracks.name, index)
+                music_add_message = await send(ctx, "playlistLoad", tracks.name, index)
+                await asyncio.sleep(5)
+                await music_add_message.delete()
             else:
                 position = await player.add_track(tracks[0])
                 texts = await get_lang(ctx.guild.id, "live", "trackLoad_pos", "trackLoad")
                 await ctx.send((f"`{texts[0]}`" if tracks[0].is_stream else "") + (texts[1].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length, position) if position >= 1 and player.is_playing else texts[2].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length)), allowed_mentions=False)
+
         except voicelink.QueueFull as e:
             await ctx.send(e)
         finally:
@@ -247,11 +244,15 @@ class Music(commands.Cog):
         try:
             if isinstance(tracks, voicelink.Playlist):
                 index = await player.add_track(tracks.tracks, at_font=True)
-                await send(ctx, "playlistLoad", tracks.name, index)
+                play_song_top_message = await send(ctx, "playlistLoad", tracks.name, index)
+                await asyncio.sleep(5)
+                await play_song_top_message.delete()
             else:
                 position = await player.add_track(tracks[0], at_font=True)
                 texts = await get_lang(ctx.guild.id, "live", "trackLoad_pos", "trackLoad")
-                await ctx.send((f"`{texts[0]}`" if tracks[0].is_stream else "") + (texts[1].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length, position) if position >= 1 and player.is_playing else texts[2].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length)), allowed_mentions=False)
+                play_song_top_message = await ctx.send((f"`{texts[0]}`" if tracks[0].is_stream else "") + (texts[1].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length, position) if position >= 1 and player.is_playing else texts[2].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length)), allowed_mentions=False)
+                await asyncio.sleep(5)
+                await play_song_top_message.delete()
 
         except voicelink.QueueFull as e:
             await ctx.send(e)
@@ -279,12 +280,16 @@ class Music(commands.Cog):
         try:
             if isinstance(tracks, voicelink.Playlist):
                 index = await player.add_track(tracks.tracks, at_font=True)
-                await send(ctx, "playlistLoad", tracks.name, index)
+                song_force_message = await send(ctx, "playlistLoad", tracks.name, index)
+                await asyncio.sleep(5)
+                await song_force_message.delete()
+
             else:
                 texts = await get_lang(ctx.guild.id, "live", "trackLoad")
                 await player.add_track(tracks[0], at_font=True)
-                await ctx.send((f"`{texts[0]}`" if tracks[0].is_stream else "") + texts[1].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length), allowed_mentions=False)
-
+                song_force_message = await ctx.send((f"`{texts[0]}`" if tracks[0].is_stream else "") + texts[1].format(tracks[0].title, tracks[0].uri, tracks[0].author, tracks[0].formatted_length), allowed_mentions=False)
+                await asyncio.sleep(5)
+                await song_force_message.delete()
         except voicelink.QueueFull as e:
             await ctx.send(e)
 
@@ -317,7 +322,9 @@ class Music(commands.Cog):
 
         await player.set_pause(True, ctx.author)
         player.pause_votes.clear()
-        await send(ctx, "paused", ctx.author)
+        song_pause = await send(ctx, "paused", ctx.author)
+        await asyncio.sleep(5)
+        await song_pause.delete()
 
     @music.command(name="resume", aliases=get_aliases("resume"))
     @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
@@ -342,7 +349,9 @@ class Music(commands.Cog):
 
         await player.set_pause(False, ctx.author)
         player.resume_votes.clear()
-        await send(ctx, "resumed", ctx.author)
+        resumed_song_message = await send(ctx, "resumed", ctx.author)
+        await asyncio.sleep(5)
+        await resumed_song_message.delete()
 
     @music.command(name="skip", aliases=get_aliases("skip"))
     @app_commands.describe(index="Enter a index that you want to skip to.")
@@ -374,7 +383,9 @@ class Music(commands.Cog):
         if index:
             player.queue.skipto(index)
 
-        await send(ctx, "skipped", ctx.author)
+        song_skipped_message = await send(ctx, "skipped", ctx.author)
+        await asyncio.sleep(5)
+        await song_skipped_message.delete()
 
         if player.queue._repeat.mode == voicelink.LoopType.track:
             await player.set_repeat(voicelink.LoopType.off.name)
@@ -410,7 +421,9 @@ class Music(commands.Cog):
             player.queue.backto(index + 1)
             await player.stop()
 
-        await send(ctx, "backed", ctx.author)
+        song_backed_message = await send(ctx, "backed", ctx.author)
+        await asyncio.sleep(5)
+        await song_backed_message.delete()
 
         if player.queue._repeat.mode == voicelink.LoopType.track:
             await player.set_repeat(voicelink.LoopType.off.name)
@@ -435,14 +448,11 @@ class Music(commands.Cog):
             return await send(ctx, "timeFormatError", ephemeral=True)
 
         await player.seek(num, ctx.author)
-        await send(ctx, "seek", position)
+        seek_message = await send(ctx, "seek", position)
+        await asyncio.sleep(5)
+        await seek_message.delete()
 
-    @commands.hybrid_group(
-        name="queue",
-        aliases=get_aliases("queue"),
-        fallback="list",
-        invoke_without_command=True
-    )
+    @music.command(name="queue", aliases=get_aliases("queue"), fallback="list", invoke_without_command=True)
     @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
     async def queue(self, ctx: commands.Context):
         "Display the players queue songs in your queue."
@@ -457,76 +467,6 @@ class Music(commands.Cog):
             return await nowplay(ctx, player)
         view = ListView(player=player, author=ctx.author)
         view.response = await ctx.send(embed=await view.build_embed(), view=view)
-
-    @queue.command(name="export", aliases=get_aliases("export"))
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def export(self, ctx: commands.Context):
-        "Exports the entire queue to a text file"
-        player: voicelink.Player = ctx.guild.voice_client
-        if not player:
-            return await send(ctx, "noPlayer", ephemeral=True)
-
-        if not player.is_user_join(ctx.author):
-            return await send(ctx, "notInChannel", ctx.author.mention, player.channel.mention, ephemeral=True)
-
-        if player.queue.is_empty and not player.current:
-            return await send(ctx, "noTrackPlaying", ephemeral=True)
-
-        await ctx.defer()
-
-        tracks = player.queue.tracks(True)
-        temp = ""
-        raw = "----------->Raw Info<-----------\n"
-
-        total_length = 0
-        for index, track in enumerate(tracks, start=1):
-            temp += f"{index}. {track.title} [{ctime(track.length)}]\n"
-            raw += track.track_id
-            if index != len(tracks):
-                raw += ","
-            total_length += track.length
-
-        temp = "!Remember do not change this file!\n------------->Info<-------------\nGuild: {} ({})\nRequester: {} ({})\nTracks: {} - {}\n------------>Tracks<------------\n".format(
-            ctx.guild.name, ctx.guild.id,
-            ctx.author.display_name, ctx.author.id,
-            len(tracks), ctime(total_length)
-        ) + temp
-        temp += raw
-
-        await ctx.reply(content="", file=discord.File(StringIO(temp), filename=f"{ctx.guild.id}_Full_Queue.txt"))
-
-    @queue.command(name="import", aliases=get_aliases("import"))
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def _import(self, ctx: commands.Context, attachment: discord.Attachment):
-        "Imports the text file and adds the track to the current queue."
-        player: voicelink.Player = ctx.guild.voice_client
-        if not player:
-            player = await voicelink.connect_channel(ctx)
-
-        if not player.is_user_join(ctx.author):
-            return await send(ctx, "notInChannel", ctx.author.mention, player.channel.mention, ephemeral=True)
-
-        try:
-            bytes = await attachment.read()
-            track_ids = bytes.split(b"\n")[-1]
-            track_ids = track_ids.decode().split(",")
-
-            tracks = (voicelink.Track(track_id=track_id, info=voicelink.decode(track_id), requester=ctx.author) for track_id in track_ids)
-            if not tracks:
-                return await send(ctx, "noTrackFound")
-
-            index = await player.add_track(tracks)
-            await send(ctx, "playlistLoad", attachment.filename, index)
-
-        except voicelink.QueueFull as e:
-            return await ctx.send(e, ephemeral=True)
-
-        except:
-            return await send(ctx, "decodeError", ephemeral=True)
-
-        finally:
-            if not player.is_playing:
-                await player.do_next()
 
     @music.command(name="history", aliases=get_aliases("history"))
     @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
@@ -563,7 +503,9 @@ class Music(commands.Cog):
                 else:
                     return await send(ctx, "leaveVote", ctx.author, len(player.stop_votes), required)
 
-        await send(ctx, "left", ctx.author)
+        music_stopped_message = await send(ctx, "left", ctx.author)
+        await asyncio.sleep(5)
+        await music_stopped_message.delete()
         await player.teardown()
 
     @music.command(name="nowplaying", aliases=get_aliases("nowplaying"))
@@ -597,7 +539,9 @@ class Music(commands.Cog):
             return await send(ctx, "missingPerms_mode", ephemeral=True)
 
         await player.set_repeat(mode)
-        await send(ctx, "repeat", mode.capitalize())
+        music_repeat_message = await send(ctx, "repeat", mode.capitalize())
+        await asyncio.sleep(5)
+        await music_repeat_message.delete()
 
     @music.command(name="clear", aliases=get_aliases("clear"))
     @app_commands.describe(queue="Choose a queue that you want to clear.")
@@ -622,7 +566,9 @@ class Music(commands.Cog):
             queue = "queue"
             player.queue.clear()
 
-        await send(ctx, "cleared", queue.capitalize())
+        song_queue_cleared_message = await send(ctx, "cleared", queue.capitalize())
+        await asyncio.sleep(5)
+        await song_queue_cleared_message.delete()
 
     @music.command(name="remove", aliases=get_aliases("remove"))
     @app_commands.describe(
@@ -642,51 +588,9 @@ class Music(commands.Cog):
 
         removedTrack = player.queue.remove(position1, position2, member=member)
 
-        await send(ctx, "removed", len(removedTrack))
-
-    @music.command(name="forward", aliases=get_aliases("forward"))
-    @app_commands.describe(position="Input a amount that you to forward to. Exmaple: 1:20")
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def forward(self, ctx: commands.Context, position: str = "10"):
-        "Forwards by a certain amount of time in the current track. The default is 10 seconds."
-        player: voicelink.Player = ctx.guild.voice_client
-        if not player:
-            return await send(ctx, "noPlayer", ephemeral=True)
-
-        if not player.is_privileged(ctx.author):
-            return await send(ctx, "missingPerms_pos", ephemeral=True)
-
-        if not player.current:
-            return await send(ctx, "noTrackPlaying", ephemeral=True)
-
-        num = formatTime(position)
-        if num is None:
-            return await send(ctx, "timeFormatError", ephemeral=True)
-
-        await player.seek(int(player.position + num))
-        await send(ctx, "forward", ctime(player.position + num))
-
-    @music.command(name="rewind", aliases=get_aliases("rewind"))
-    @app_commands.describe(position="Input a amount that you to rewind to. Exmaple: 1:20")
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def rewind(self, ctx: commands.Context, position: str = "10"):
-        "Rewind by a certain amount of time in the current track. The default is 10 seconds."
-        player: voicelink.Player = ctx.guild.voice_client
-        if not player:
-            return await send(ctx, "noPlayer", ephemeral=True)
-
-        if not player.is_privileged(ctx.author):
-            return await send(ctx, "missingPerms_pos", ephemeral=True)
-
-        if not player.current:
-            return await send(ctx, "noTrackPlaying", ephemeral=True)
-
-        num = formatTime(position)
-        if num is None:
-            return await send(ctx, "timeFormatError", ephemeral=True)
-
-        await player.seek(int(player.position - num))
-        await send(ctx, "rewind", ctime(player.position - num))
+        removed_song_message = await send(ctx, "removed", len(removedTrack))
+        await asyncio.sleep(5)
+        await removed_song_message.delete()
 
     @music.command(name="replay", aliases=get_aliases("replay"))
     @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
@@ -703,7 +607,9 @@ class Music(commands.Cog):
             return await send(ctx, "noTrackPlaying", ephemeral=True)
 
         await player.seek(0)
-        await send(ctx, "replay")
+        replay_message = await send(ctx, "replay")
+        await asyncio.sleep(5)
+        await replay_message.delete()
 
     @music.command(name="shuffle", aliases=get_aliases("shuffle"))
     @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
@@ -724,7 +630,9 @@ class Music(commands.Cog):
                     return await send(ctx, "shuffleVote", ctx.author, len(player.shuffle_votes), required)
 
         await player.shuffle("queue", ctx.author)
-        await send(ctx, "shuffled")
+        suffled_message = await send(ctx, "shuffled")
+        await asyncio.sleep(5)
+        await suffled_message.delete()
 
     @music.command(name="swap", aliases=get_aliases("swap"))
     @app_commands.describe(
@@ -742,7 +650,9 @@ class Music(commands.Cog):
             return await send(ctx, "missingPerms_pos", ephemeral=True)
 
         track1, track2 = player.queue.swap(position1, position2)
-        await send(ctx, "swapped", track1.title, track2.title)
+        songs_swapped_message = await send(ctx, "swapped", track1.title, track2.title)
+        await asyncio.sleep(5)
+        await songs_swapped_message.delete()
 
     @music.command(name="move", aliases=get_aliases("move"))
     @app_commands.describe(
@@ -760,52 +670,9 @@ class Music(commands.Cog):
             return await send(ctx, "missingPerms_pos", ephemeral=True)
 
         moved_track = player.queue.move(target, to)
-        await send(ctx, "moved", moved_track, to)
-
-    @music.command(name="lyrics", aliases=get_aliases("lyrics"))
-    @app_commands.describe(title="Searches for your query and displays the reutned lyrics.")
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def lyrics(self, ctx: commands.Context, title: str = "", artist: str = ""):
-        "Displays lyrics for the playing track."
-        if not title:
-            player: voicelink.Player = ctx.guild.voice_client
-            if not player or not player.is_playing:
-                return await send(ctx, "noTrackPlaying", ephemeral=True)
-
-            title = player.current.title
-            artist = player.current.author
-
-        await ctx.defer()
-        song: dict[str, str] = await lyricsPlatform.get(settings.lyrics_platform)().get_lyrics(title, artist)
-        if not song:
-            return await send(ctx, "lyricsNotFound", ephemeral=True)
-
-        view = LyricsView(name=title, source={_: re.findall(r'.*\n(?:.*\n){,22}', v) for _, v in song.items()}, author=ctx.author)
-        view.response = await ctx.send(embed=view.build_embed(), view=view)
-
-    @music.command(name="swapdj", aliases=get_aliases("swapdj"))
-    @app_commands.describe(member="Choose a member to transfer the dj role.")
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def swapdj(self, ctx: commands.Context, member: discord.Member):
-        "Transfer dj to another."
-        player: voicelink.Player = ctx.guild.voice_client
-        if not player:
-            return await send(ctx, "noPlayer", ephemeral=True)
-
-        if not player.is_user_join(ctx.author):
-            return await send(ctx, "notInChannel", ctx.author.mention, player.channel.mention, ephemeral=True)
-
-        if player.dj.id != ctx.author.id or player.settings.get('dj', False):
-            return await send(ctx, "notdj", f"<@&{player.settings['dj']}>" if player.settings.get('dj') else player.dj.mention, ephemeral=True)
-
-        if player.dj.id == member.id or member.bot:
-            return await send(ctx, "djToMe", ephemeral=True)
-
-        if member not in player.channel.members:
-            return await send(ctx, "djnotinchannel", member, ephemeral=True)
-
-        player.dj = member
-        await send(ctx, "djswap", member)
+        song_moved_message = await send(ctx, "moved", moved_track, to)
+        await asyncio.sleep(5)
+        await song_moved_message.delete()
 
     @music.command(name="autoplay", aliases=get_aliases("autoplay"))
     @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
@@ -820,7 +687,9 @@ class Music(commands.Cog):
 
         check = not player.settings.get("autoplay", False)
         player.settings['autoplay'] = check
-        await send(ctx, "autoplay", await get_lang(ctx.guild.id, "enabled" if check else "disabled"))
+        auto_play_message = await send(ctx, "autoplay", await get_lang(ctx.guild.id, "enabled" if check else "disabled"))
+        await asyncio.sleep(5)
+        await auto_play_message.delete()
 
         if not player.is_playing:
             await player.do_next()

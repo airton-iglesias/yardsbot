@@ -68,13 +68,13 @@
     "default_controller": {
         "embeds": {
             "active": {
-                "description": "**Now Playing: ```[@@track_name@@]```\nLink: [Click Me](@@track_url@@) | Requester: @@requester@@ | DJ: @@dj@@**",
+                "description": "**Now Playing: ```[@@track_name@@]```\nLink: [Click Me](@@track_url@@) | Requester: @@requester@@**",
                 "footer": {
                     "text": "Queue Length: @@queue_length@@ | Duration: @@track_duration@@ | Volume: @@volume@@% {{loop_mode != 'Off' ?? | Repeat: @@loop_mode@@}}"
                 },
                 "image": "@@track_thumbnail@@",
                 "author": {
-                    "name": "Music Controller | @@channel_name@@",
+                    "name": "Requester Channel | @@channel_name@@",
                     "icon_url": "@@bot_icon@@"
                 },
                 "color": "@@track_color@@"
@@ -92,8 +92,7 @@
             [
                 "autoplay",
                 "shuffle",
-                "loop",
-                "add"
+                "loop"
             ],
             [
                 "back",
@@ -105,10 +104,7 @@
             ],
             [
                 "volumeup",
-                "volumedown",
-                {
-                    "mute": "red"
-                }
+                "volumedown"
             ]
         ],
         "disableButtonText": false

@@ -32,16 +32,7 @@ SETTINGS_BUFFER: dict[int, dict[str, Any]] = {} #Cache guild language
 USERS_BUFFER: dict[str, dict] = {}
 
 USERS_BASE: dict[str, Any] = {
-    'playlist': {
-        '1': {
-            'tracks':[],
-            'perms': {'read': [], 'write':[], 'remove': []},
-            'name':'Favourite',
-            'type':'playlist'
-        }
-    },
-    'history': [],
-    'inbox':[]
+    'history': []
 }
 
 ALLOWED_MENTIONS = discord.AllowedMentions().none()
@@ -234,3 +225,6 @@ async def get_user(user_id: int, d_type: Optional[str] = None, need_copy: bool =
 async def update_user(user_id:int, data:dict) -> bool:
     playlist = await get_user(user_id, need_copy=False)
     return await update_db(USERS_DB, playlist, {"_id": user_id}, data)
+
+async def is_email_registered(email: str) -> bool:
+    return await USERS_DB.find_one({"email": email}) is not None

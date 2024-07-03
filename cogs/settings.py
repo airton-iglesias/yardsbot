@@ -16,7 +16,7 @@ from function import (
     get_aliases,
     cooldown_check
 )
-from views import DebugView, HelpView, EmbedBuilderView
+from views import HelpView, EmbedBuilderView
 
 def formatBytes(bytes: int, unit: bool = False):
     if bytes <= 1_000_000_000:
@@ -30,11 +30,7 @@ class Settings(commands.Cog, name="settings"):
         self.bot: commands.Bot = bot
         self.description = "This category is only available to admin permissions on the server."
     
-    @commands.hybrid_group(
-        name="settings",
-        aliases=get_aliases("settings"),
-        invoke_without_command=True
-    )
+    @commands.hybrid_group(name="settings", aliases=get_aliases("settings"), invoke_without_command=True)
     async def settings(self, ctx: commands.Context):
         view = HelpView(self.bot, ctx.author)
         embed = view.build_embed(self.qualified_name)
@@ -66,14 +62,6 @@ class Settings(commands.Cog, name="settings"):
             return [app_commands.Choice(name=lang, value=lang) for lang in LANGS.keys() if current.upper() in lang]
         return [app_commands.Choice(name=lang, value=lang) for lang in LANGS.keys()]
 
-    @settings.command(name="dj", aliases=get_aliases("dj"))
-    @commands.has_permissions(manage_guild=True)
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def dj(self, ctx: commands.Context, role: discord.Role = None):
-        "Set a DJ role or remove DJ role."
-        await update_settings(ctx.guild.id, {"$set": {'dj': role.id}} if role else {"$unset": {'dj': None}})
-        await send(ctx, 'setDJ', f"<@&{role.id}>" if role else "None")
-
     @settings.command(name="queue", aliases=get_aliases("queue"))
     @app_commands.choices(mode=[
         app_commands.Choice(name="FairQueue", value="FairQueue"),
@@ -86,65 +74,6 @@ class Settings(commands.Cog, name="settings"):
         mode = "FairQueue" if mode.lower() == "fairqueue" else "Queue"
         await update_settings(ctx.guild.id, {"$set": {"queueType": mode}})
         await send(ctx, "setqueue", mode)
-
-    @settings.command(name="247", aliases=get_aliases("247"))
-    @commands.has_permissions(manage_guild=True)
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def playforever(self, ctx: commands.Context):
-        "Toggles 24/7 mode, which disables automatic inactivity-based disconnects."
-        settings = await get_settings(ctx.guild.id)
-        toggle = settings.get('24/7', False)
-        await update_settings(ctx.guild.id, {"$set": {'24/7': not toggle}})
-        await send(ctx, '247', await get_lang(ctx.guild.id, "enabled" if not toggle else "disabled"))
-
-    @settings.command(name="bypassvote", aliases=get_aliases("bypassvote"))
-    @commands.has_permissions(manage_guild=True)
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def bypassvote(self, ctx: commands.Context):
-        "Toggles voting system."
-        settings = await get_settings(ctx.guild.id)
-        toggle = settings.get('votedisable', True)
-        await update_settings(ctx.guild.id, {"$set": {'votedisable': not toggle}})
-        await send(ctx, 'bypassVote', await get_lang(ctx.guild.id, "enabled" if not toggle else "disabled"))
-
-    @settings.command(name="view", aliases=get_aliases("view"))
-    @commands.has_permissions(manage_guild=True)
-    @commands.dynamic_cooldown(cooldown_check, commands.BucketType.guild)
-    async def view(self, ctx: commands.Context):
-        "Show all the bot settings in your server."
-        settings = await get_settings(ctx.guild.id)
-
-        texts = await get_lang(ctx.guild.id, "settingsMenu", "settingsTitle", "settingsValue", "settingsTitle2", "settingsValue2", "settingsPermTitle", "settingsPermValue")
-        embed = discord.Embed(color=func.settings.embed_color)
-        embed.set_author(name=texts[0].format(ctx.guild.name), icon_url=self.bot.user.display_avatar.url)
-        if ctx.guild.icon:
-            embed.set_thumbnail(url=ctx.guild.icon.url)
-
-        embed.add_field(name=texts[1], value=texts[2].format(
-            settings.get('prefix', func.settings.bot_prefix) or "None",
-            settings.get('lang', 'EN'),
-            settings.get('controller', True),
-            f"<@&{settings['dj']}>" if 'dj' in settings else '`None`',
-            settings.get('votedisable', False),
-            settings.get('24/7', False),
-            settings.get('volume', 100),
-            ctime(settings.get('playTime', 0) * 60 * 1000),
-            inline=True)
-        )
-        embed.add_field(name=texts[3], value=texts[4].format(
-            settings.get("queueType", "Queue"),
-            func.settings.max_queue,
-            settings.get("duplicateTrack", True)
-        ))
-
-        perms = ctx.guild.me.guild_permissions
-        embed.add_field(name=texts[5], value=texts[6].format(
-            '<a:Check:941206936651706378>' if perms.administrator else '<a:Cross:941206918255497237>',
-            '<a:Check:941206936651706378>' if perms.manage_guild else '<a:Cross:941206918255497237>',
-            '<a:Check:941206936651706378>' if perms.manage_channels else '<a:Cross:941206918255497237>',
-            '<a:Check:941206936651706378>' if perms.manage_messages else '<a:Cross:941206918255497237>'), inline=False
-        )
-        await ctx.send(embed=embed)
 
     @settings.command(name="volume", aliases=get_aliases("volume"))
     @app_commands.describe(value="Input a integer.")
@@ -213,46 +142,6 @@ class Settings(commands.Cog, name="settings"):
         await update_settings(ctx.guild.id, {"$set": {'controller_msg': toggle}})
         await send(ctx, 'toggleControllerMsg', await get_lang(ctx.guild.id, "enabled" if toggle else "disabled"))
 
-    @app_commands.command(name="debug")
-    async def debug(self, interaction: discord.Interaction):
-        if interaction.user.id not in func.settings.bot_access_user:
-            return await interaction.response.send_message("You are not able to use this command!")
-
-        memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-
-        available_memory, total_memory = memory.available, memory.total
-        used_disk_space, total_disk_space = disk.used, disk.total
-        embed = discord.Embed(title="📄 Debug Panel", color=func.settings.embed_color)
-        embed.description = "```==    System Info    ==\n" \
-                            f"• CPU:     {psutil.cpu_freq().current}Mhz ({psutil.cpu_percent()}%)\n" \
-                            f"• RAM:     {formatBytes(total_memory - available_memory)}/{formatBytes(total_memory, True)} ({memory.percent}%)\n" \
-                            f"• DISK:    {formatBytes(total_disk_space - used_disk_space)}/{formatBytes(total_disk_space, True)} ({disk.percent}%)```"
-
-        embed.add_field(
-            name="🤖 Bot Information",
-            value=f"```• LATENCY: {self.bot.latency:.2f}ms\n" \
-                  f"• GUILDS:  {len(self.bot.guilds)}\n" \
-                  f"• USERS:   {sum([guild.member_count for guild in self.bot.guilds])}\n" \
-                  f"• PLAYERS: {len(self.bot.voice_clients)}```",
-            inline=False
-        )
-
-        node: voicelink.Node
-        for name, node in voicelink.NodePool._nodes.items():
-            total_memory = node.stats.used + node.stats.free
-            embed.add_field(
-                name=f"{name} Node - " + ("🟢 Connected" if node._available else "🔴 Disconnected"),
-                value=f"```• ADDRESS:  {node._host}:{node._port}\n" \
-                      f"• PLAYERS:  {len(node._players)}\n" \
-                      f"• CPU:      {node.stats.cpu_process_load:.1f}%\n" \
-                      f"• RAM:      {formatBytes(node.stats.free)}/{formatBytes(total_memory, True)} ({(node.stats.free/total_memory) * 100:.1f}%)\n"
-                      f"• LATENCY:  {node.latency:.2f}ms\n" \
-                      f"• UPTIME:   {func.time(node.stats.uptime)}```",
-                inline=True
-            )
-
-        await interaction.response.send_message(embed=embed, view=DebugView(self.bot), ephemeral=True)
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Settings(bot))

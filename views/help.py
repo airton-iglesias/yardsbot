@@ -33,8 +33,8 @@ class HelpView(discord.ui.View):
         self.response: discord.Message = None
         self.categorys: list[str] = [ name.capitalize() for name, cog in bot.cogs.items() if len([c for c in cog.walk_commands()]) ]
 
-        self.add_item(discord.ui.Button(label='Invite', emoji=':invite:915152589056790589', url=f'https://discord.gg/P83hMtsj9Q'))
-        self.add_item(discord.ui.Button(label='Donate', emoji=':patreon:913397909024800878', url='https://bit.ly/Yardzin'))
+        self.add_item(discord.ui.Button(label='Discord', emoji=':invite:915152589056790589', url=f'https://discord.gg/P83hMtsj9Q'))
+        self.add_item(discord.ui.Button(label='Patreon', emoji=':patreon:913397909024800878', url='https://bit.ly/Yardzin'))
         self.add_item(HelpDropdown(self.categorys))
     
     async def on_error(self, error, item, interaction) -> None:
